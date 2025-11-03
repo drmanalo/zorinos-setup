@@ -1,0 +1,23 @@
+---
+- name: Install flatpak apps from flathub
+  hosts: localhost
+  vars:
+    flatpak_apps_to_install:
+      - rest.insomnia.Insomnia
+      - com.sublimetext.three
+      - com.tradingview.tradingview
+      - com.rtosta.zapzap
+
+  tasks:
+    - name: Get list of installed flatpak apps
+      command: flatpak list --app --columns=application
+      register: _flatpak_apps
+      changed_when: false
+      failed_when: false
+
+    - name: Install missing flatpak apps from Flathub (loop)
+      command: flatpak install -y --noninteractive flathub {{ item }}
+      loop: "{{ flatpak_apps_to_install }}"
+      when: item not in (_flatpak_apps.stdout_lines | default([]))
+      failed_when: false
+      changed_when: "'Installing' in (stdout | default(''))"

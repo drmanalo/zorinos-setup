@@ -1,0 +1,89 @@
+---
+- name: Install MesloLGS NF and JetBrainsMono Nerd fonts
+  gather_facts: true
+  hosts: localhost
+  vars:
+    fonts_dir: /usr/local/share/fonts
+    download_dir: "{{ ansible_env.HOME }}/Downloads/fonts"
+    meslo_fonts:
+      - name: "MesloLGS NF Regular.ttf"
+        url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
+      - name: "MesloLGS NF Bold.ttf"
+        url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf"
+      - name: "MesloLGS NF Italic.ttf"
+        url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf"
+      - name: "MesloLGS NF Bold Italic.ttf"
+        url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf"
+
+    # JetBrainsMono Nerd
+    jetbrains_mono_zip:
+      name: "JetBrainsMono.zip"
+      url: "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
+
+  tasks:
+    - name: Ensure download dir exists
+      file:
+        path: "{{ download_dir }}"
+        state: directory
+
+    - name: Ensure system fonts dir exists
+      become: true
+      file:
+        path: "{{ fonts_dir }}"
+        state: directory
+        mode: 0755
+        owner: root
+        group: root
+
+    - name: Download Meslo fonts
+      get_url:
+        url: "{{ item.url }}"
+        dest: "{{ download_dir }}/{{ item.name }}"
+        mode: 0644
+        force: no
+      loop: "{{ meslo_fonts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Copy Meslo fonts to system fonts dir
+      become: true
+      copy:
+        src: "{{ download_dir }}/{{ item.name }}"
+        dest: "{{ fonts_dir }}/{{ item.name }}"
+        owner: root
+        group: root
+        mode: 0644
+        remote_src: yes
+      loop: "{{ meslo_fonts }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: "ansible_facts['os_family'] is defined"
+
+    - name: Download JetBrainsMono zip
+      get_url:
+        url: "{{ jetbrains_mono_zip.url }}"
+        dest: "{{ download_dir }}/{{ jetbrains_mono_zip.name }}"
+        mode: 0644
+        force: no
+
+    - name: Unarchive JetBrainsMono into fonts directory
+      unarchive:
+        src: "{{ download_dir }}/{{ jetbrains_mono_zip.name }}"
+        dest: "{{ fonts_dir }}"
+        remote_src: yes
+        creates: "{{ fonts_dir }}/JetBrainsMonoNerdFont-Regular.ttf"
+      register: unarchive_result
+      failed_when: unarchive_result is failed
+
+    - name: Fix ownership and permissions for all installed fonts
+      become: true
+      file:
+        path: "{{ fonts_dir }}"
+        recurse: yes
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Rebuild system font cache
+      command: fc-cache -f -v
+      changed_when: "'Scanning' in (fc_cache.stdout | default(''))"

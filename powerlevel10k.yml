@@ -1,0 +1,175 @@
+---
+- hosts: localhost
+  vars:
+    p10k_dir: "{{ ansible_env.HOME }}/powerlevel10k"
+    zshrc_autosuggestions_path: "{{ ansible_env.HOME }}/.zsh/zsh-autosuggestions"
+    zshrc_path: "{{ ansible_env.HOME }}/.zshrc"
+    
+  tasks:
+    - name: Ensure zsh is installed
+      become: true
+      apt:
+        name: zsh
+        state: present
+        update_cache: yes
+
+    - name: Clone Powerlevel10k repo
+      git:
+        repo: https://github.com/romkatv/powerlevel10k.git
+        dest: "{{ ansible_env.HOME }}/powerlevel10k"
+        depth: 1
+        update: yes
+        force: yes
+        version: master
+
+    - name: Clone zsh-autosuggestions repo
+      git:
+        repo: https://github.com/zsh-users/zsh-autosuggestions
+        dest: "{{ zshrc_autosuggestions_path }}"
+
+    - name: Rewrite .zshrc as a block
+      ansible.builtin.blockinfile:
+        path: "{{ zshrc_path }}"
+        marker: "# {mark} ANSIBLE_MANAGED_P10K"    # marker for update
+        insertafter: EOF
+        create: yes
+        block: |
+          # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+          # Initialization code that may require console input (password prompts, [y/n]
+          # confirmations, etc.) must go above this block; everything else may go below.
+          if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+            source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+          fi
+
+          [[ -f "{{ p10k_dir }}/powerlevel10k.zsh-theme" ]] && source "{{ p10k_dir }}/powerlevel10k.zsh-theme"
+
+          # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+          [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+          # Load aliases
+          [[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases
+
+          # Load exports
+          [[ -f ~/.zsh_exports ]] && source ~/.zsh_exports
+
+          # Load zsh-autosuggestions
+          [[ -f "{{ zshrc_autosuggestions_path }}/zsh-autosuggestions.zsh" ]] && source "{{ zshrc_autosuggestions_path }}/zsh-autosuggestions.zsh"
+
+          # zsh history
+          HISTFILE=~/.zsh_history
+          HISTSIZE=10000
+          SAVEHIST=10000
+          setopt appendhistory
+
+    - name: Change default shell to zsh for current user
+      user:
+        name: "{{ ansible_env.USER }}"
+        shell: /usr/bin/zsh
+
+    - name: Download xremap zip
+      get_url:
+        url: https://github.com/xremap/xremap/releases/download/v0.14.2/xremap-linux-x86_64-gnome.zip
+        dest: /tmp/xremap-linux-x86_64-gnome.zip
+        mode: 0644
+        force: no
+
+    - name: Unzip xremap binary
+      become: true
+      unarchive:
+        src: /tmp/xremap-linux-x86_64-gnome.zip
+        dest: /usr/local/bin
+        remote_src: yes
+        mode: 0755
+        creates: /usr/local/bin/xremap
+
+    - name: Ensure systemd user service directory exists
+      file:
+        path: "{{ ansible_env.HOME }}/.config/systemd/user"
+        state: directory
+        mode: 0755
+
+    - name: Write keymap config
+      copy:
+        dest: "{{ ansible_env.HOME }}/.config/xremap/config.yml"
+        content: |
+          ---
+          keymap:
+            - name: TildeFix
+              remap:
+                102nd: grave
+        mode: 0644
+
+    - name: Write xremap systemd user service
+      copy:
+        dest: "{{ ansible_env.HOME }}/.config/systemd/user/xremap.service"
+        content: |
+          [Unit]
+          Description=xremap key remapping
+          After=graphical.target
+          PartOf=graphical.target
+
+          [Service]
+          ExecStart=/usr/local/bin/xremap "{{ ansible_env.HOME }}/.config/xremap/config.yml" --device /dev/input/event4
+          Restart=on-failure
+          RestartSec=2
+          Type=simple
+
+          [Install]
+          WantedBy=graphical.target
+        mode: 0644
+
+    - name: Reload user systemd daemon
+      command: systemctl --user daemon-reload
+
+    - name: Enable xremap user service
+      command: systemctl --user enable xremap.service
+
+    - name: Start xremap user service
+      command: systemctl --user start xremap.service
+      register: xremap_start
+      failed_when: xremap_start.rc != 0 and 'already running' not in xremap_start.stderr
+
+    - name: Write .zsh_aliases
+      copy:
+        dest: "{{ ansible_env.HOME }}/.zsh_aliases"
+        content: |
+          # -----------------------------------------------------
+          # General
+          # -----------------------------------------------------
+          alias ls='eza -a --icons=always'
+          alias la='eza -lia --icons=always'
+          alias ll='eza -l --icons=always'
+          alias lt='eza --tree --level=1 --icons=always'
+
+          # -----------------------------------------------------
+          # Work
+          # -----------------------------------------------------
+          alias cl='clear'
+          alias home='cd ~/'
+          alias py='python3'
+          alias rs='exec $SHELL -l'
+        mode: 0644
+
+    - name: Write .zsh_exports
+      copy:
+        dest: "{{ ansible_env.HOME }}/.zsh_exports"
+        content: |
+          # Docker
+          export DOCKER_HOST=unix:///run/user/1000/docker.sock
+
+          # DotNet
+          export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+
+          # Golang
+          export PATH=$PATH:/usr/local/go/bin
+          export GOPATH=~/go
+          export PATH="$PATH:$(go env GOPATH)/bin"
+
+          # Node
+          # Added by n-install (see http://git.io/n-install-repo).
+          export N_PREFIX="$HOME/n"; [[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"
+
+          # Python
+          export PYTHONPATH="$PWD/lib:$PYTHONPATH"
+          export PATH="$PATH:~/.local/bin"
+        mode: 0644

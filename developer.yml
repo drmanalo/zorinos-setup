@@ -8,11 +8,40 @@
         add-apt-repository universe -y
         add-apt-repository ppa:agornostal/ulauncher -y
 
+- name: AWS CLI
+  hosts: localhost
+  tasks:
+    - name: Download awscli
+      get_url:
+        dest: /tmp/awscliv2.zip
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        mode: 0644
+        force: false
+
+    - name: Create temp folder
+      file:
+        path: /tmp/awscliv2
+        state: directory
+        mode: 0755
+
+    - name: Extract awscli
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp/awscliv2
+        remote_src: yes
+        creates: /tmp/awscliv2/aws/install
+
+    - name: Run bundled installer
+      become: true
+      command: /tmp/awscliv2/aws/install -i /usr/local/aws-cli -b /usr/local/bin
+      args:
+        creates: /usr/local/bin/aws
+
 - name: .NET Runtime
   hosts: localhost
   tasks:
     - name: Download .NET runtime
-      ansible.builtin.get_url:
+      get_url:
         force: true
         mode: 0755
         dest: "{{ ansible_env.HOME }}/Downloads/dotnet-install.sh"
@@ -20,7 +49,7 @@
       become: false
 
     - name: Install .NET runtime
-      ansible.builtin.shell: >
+      shell: |
         bash "{{ ansible_env.HOME }}/Downloads/dotnet-install.sh"
         --install-dir /usr/share/dotnet
         --version 8.0.415
@@ -34,8 +63,8 @@
   hosts: localhost
   tasks:
     - name: Download golang
-      ansible.builtin.get_url:
-        force: true
+      get_url:
+        force: false
         mode: 0755
         dest: /tmp/go1.25.3.linux-amd64.tar.gz
         url: https://go.dev/dl/go1.25.3.linux-amd64.tar.gz
@@ -49,15 +78,6 @@
       args:
         creates: /usr/local/go/bin/go
         executable: /bin/bash
-
-    - name: Verify go version
-      command: /usr/local/go/bin/go version
-      register: go_ver
-      changed_when: false
-
-    - name: Display go version
-      debug:
-        msg: "{{ go_ver.stdout }}"
 
     - name: Add terraform repository
       become: true
@@ -79,7 +99,3 @@
           --fingerprint
       register: gpg_details
       changed_when: false
-
-    - name: Display Hashicorp's GPG
-      debug:
-        msg: "{{ gpg_details.stdout }}"

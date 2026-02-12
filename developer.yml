@@ -44,20 +44,22 @@
       get_url:
         force: true
         mode: 0755
-        dest: "{{ ansible_env.HOME }}/Downloads/dotnet-install.sh"
+        dest: "{{ ansible_facts['env']['HOME'] }}/Downloads/dotnet-install.sh"
         url: https://dot.net/v1/dotnet-install.sh
       become: false
 
     - name: Install .NET runtime
-      shell: |
-        bash "{{ ansible_env.HOME }}/Downloads/dotnet-install.sh"
-        --install-dir /usr/share/dotnet
-        --version 8.0.415
-      args:
-        creates: /usr/share/dotnet/dotnet
+      become: true
+      ansible.builtin.command:
+        argv:
+          - bash
+          - "{{ ansible_facts['env']['HOME'] }}/Downloads/dotnet-install.sh"
+          - --install-dir
+          - /usr/share/dotnet
+          - --version
+          - 8.0.415
       environment:
         DOTNET_CLI_TELEMETRY_OPTOUT: 1
-      become: true
 
 - name: Golang
   hosts: localhost

@@ -5,6 +5,7 @@
     packages:
       - eza
       - figlet
+      - firefox
       - fonts-font-awesome
       - fzf
       - git
@@ -18,9 +19,7 @@
       - pipx
       - podman
       - pwgen
-      - terraform
       - timeshift
-      - ulauncher
       - vlc
       - xclip
       - xdg-user-dirs

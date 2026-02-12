@@ -4,7 +4,7 @@
   hosts: localhost
   vars:
     fonts_dir: /usr/local/share/fonts
-    download_dir: "{{ ansible_env.HOME }}/Downloads/fonts"
+    download_dir: "{{ ansible_facts['env']['HOME'] }}/Downloads/fonts"
     meslo_fonts:
       - name: "MesloLGS NF Regular.ttf"
         url: "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
@@ -67,6 +67,7 @@
         force: no
 
     - name: Unarchive JetBrainsMono into fonts directory
+      become: true
       unarchive:
         src: "{{ download_dir }}/{{ jetbrains_mono_zip.name }}"
         dest: "{{ fonts_dir }}"
@@ -75,15 +76,16 @@
       register: unarchive_result
       failed_when: unarchive_result is failed
 
-    - name: Fix ownership and permissions for all installed fonts
+    - name: Fix ownership for installed fonts
       become: true
       file:
         path: "{{ fonts_dir }}"
         recurse: yes
         owner: root
         group: root
-        mode: 0644
 
     - name: Rebuild system font cache
+      become: true
       command: fc-cache -f -v
-      changed_when: "'Scanning' in (fc_cache.stdout | default(''))"
+      register: fc_cache
+      changed_when: "'Scanning' in fc_cache.stdout"

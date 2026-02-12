@@ -5,12 +5,12 @@
     - name: Download vscode package
       ansible.builtin.get_url:
         url: https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64
-        dest: "{{ ansible_env.HOME }}/Downloads/vscode.deb"
+        dest: "{{ ansible_facts['env']['HOME'] }}/Downloads/vscode.deb"
       become: false
 
     - name: Install vscode .deb package
       ansible.builtin.apt:
-        deb: "{{ ansible_env.HOME }}/Downloads/vscode.deb"
+        deb: "{{ ansible_facts['env']['HOME'] }}/Downloads/vscode.deb"
       become: true
 
 - name: Google Chrome
@@ -19,10 +19,10 @@
     - name: Download google chrome package
       ansible.builtin.get_url:
         url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-        dest: "{{ ansible_env.HOME }}/Downloads/google-chrome.deb"
+        dest: "{{ ansible_facts['env']['HOME'] }}/Downloads/google-chrome.deb"
       become: false
 
     - name: Install google chrome .deb package
       ansible.builtin.apt:
-        deb: "{{ ansible_env.HOME }}/Downloads/google-chrome.deb"
+        deb: "{{ ansible_facts['env']['HOME'] }}/Downloads/google-chrome.deb"
       become: true

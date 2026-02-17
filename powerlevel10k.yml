@@ -6,9 +6,6 @@
     p10k_dir: "{{ home_dir }}/powerlevel10k"
     zsh_autosuggestions_path: "{{ home_dir }}/.zsh/zsh-autosuggestions"
     zshrc_path: "{{ home_dir }}/.zshrc"
-    xremap_config_dir: "{{ home_dir }}/.config/xremap"
-    systemd_user_dir: "{{ home_dir }}/.config/systemd/user"
-
   tasks:
     - name: Ensure zsh is installed
       become: true
@@ -64,78 +61,6 @@
       user:
         name: "{{ ansible_facts.user_id }}"
         shell: /usr/bin/zsh
-
-    # -----------------------------
-    # XREMAP INSTALL
-    # -----------------------------
-
-    - name: Download xremap
-      get_url:
-        url: https://github.com/xremap/xremap/releases/download/v0.14.2/xremap-linux-x86_64-gnome.zip
-        dest: /tmp/xremap.zip
-        mode: "0644"
-
-    - name: Install xremap binary
-      become: true
-      unarchive:
-        src: /tmp/xremap.zip
-        dest: /usr/local/bin
-        remote_src: yes
-        creates: /usr/local/bin/xremap
-        mode: "0755"
-
-    - name: Ensure xremap config directory exists
-      file:
-        path: "{{ xremap_config_dir }}"
-        state: directory
-        mode: "0755"
-
-    - name: Write xremap config
-      copy:
-        dest: "{{ xremap_config_dir }}/config.yml"
-        mode: "0644"
-        content: |
-          ---
-          keymap:
-            - name: TildeFix
-              remap:
-                102nd: grave
-
-    - name: Ensure systemd user directory exists
-      file:
-        path: "{{ systemd_user_dir }}"
-        state: directory
-        mode: "0755"
-
-    - name: Write xremap systemd service
-      become: true
-      copy:
-        dest: /etc/systemd/system/xremap.service
-        content: |
-          [Unit]
-          Description=xremap key remapping
-          After=graphical.target
-          PartOf=graphical.target
-
-          [Service]
-          ExecStart=/usr/local/bin/xremap /root/.config/xremap/config.yml --device /dev/input/event3
-          Restart=on-failure
-          RestartSec=2
-          Type=simple
-          User=root
-
-          [Install]
-          WantedBy=graphical.target
-        mode: 0644
-
-    - name: Reload systemd daemon
-      command: systemctl --user daemon-reload
-
-    - name: Enable xremap service
-      command: systemctl --user enable xremap.service
-
-    - name: Start xremap service
-      command: systemctl --user restart xremap.service
 
     # -----------------------------
     # ZSH ALIASES / EXPORTS

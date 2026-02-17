@@ -1,0 +1,57 @@
+---
+- hosts: localhost
+  gather_facts: true
+
+  tasks:
+    - name: Ensure build deps for keyd
+      become: true
+      apt:
+        name: [build-essential, git]
+        state: present
+        update_cache: yes
+
+    - name: Clone keyd
+      git:
+        repo: https://github.com/rvaiya/keyd.git
+        dest: /tmp/keyd
+        depth: 1
+        version: v2.6.0
+
+    - name: Build and install keyd
+      become: true
+      shell: make && make install PREFIX=/usr/local
+      args:
+        chdir: /tmp/keyd
+        creates: /usr/local/bin/keyd
+
+    - name: Ensure keyd config directory exists
+      become: true
+      file:
+        path: /etc/keyd
+        state: directory
+        mode: "0755"
+
+    - name: Write keyd default config
+      become: true
+      copy:
+        dest: /etc/keyd/default.conf
+        mode: "0644"
+        content: |
+          [ids]
+          *
+
+          [main]
+          102nd = grave
+          leftmeta = layer(meta_mac)
+
+          [meta_mac:C]
+          # Inherits Ctrl: Cmd+C = Ctrl+C (copy), Cmd+V = Ctrl+V (paste), etc.
+          
+
+    - name: Reload systemd and enable keyd
+      become: true
+      systemd:
+        name: keyd
+        state: started
+        enabled: true
+        daemon_reload: true

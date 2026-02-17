@@ -1,4 +1,18 @@
 ---
+- name: cursor
+  hosts: localhost
+  tasks:
+    - name: Download cursor package
+      ansible.builtin.get_url:
+        url: https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/
+        dest: "{{ ansible_facts['env']['HOME'] }}/Downloads/cursor.deb"
+      become: false
+
+    - name: Install curosor .deb package
+      ansible.builtin.apt:
+        deb: "{{ ansible_facts['env']['HOME'] }}/Downloads/cursor.deb"
+      become: true
+
 - name: vscode
   hosts: localhost
   tasks:

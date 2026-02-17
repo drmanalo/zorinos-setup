@@ -101,3 +101,18 @@
           --fingerprint
       register: gpg_details
       changed_when: false
+
+- name: Install ollama
+  hosts: localhost
+  tasks:
+    - name: Download install script
+      get_url:
+        url: https://ollama.com/install.sh
+        dest: /tmp/ollama-install.sh
+        mode: 0755
+
+    - name: Run install script
+      become: true
+      command: /tmp/ollama-install.sh
+      args:
+        creates: /usr/local/bin/ollama

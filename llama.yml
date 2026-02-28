@@ -1,0 +1,70 @@
+---
+- name: Install Canonical inference snap
+  hosts: localhost
+  gather_facts: true
+
+  vars:
+    gemma_http_port: 9090
+    gemma_api_base: "http://127.0.0.1:{{ gemma_http_port }}/v1"
+    home_dir: "{{ lookup('env', 'HOME') }}"
+    continue_dir: "{{ home_dir }}/.continue"
+
+  tasks:
+    - name: Install Gemma3 inference
+      become: true
+      command: snap install gemma3
+      register: _gemma_install
+      changed_when: "'already installed' not in ((_gemma_install.stdout or '') + (_gemma_install.stderr or ''))"
+      failed_when: _gemma_install.rc != 0
+
+    - name: Set Gemma3 HTTP port
+      command: gemma3 set http.port={{ gemma_http_port }}
+      register: _gemma_set
+      changed_when: _gemma_set.rc == 0
+      failed_when: false
+
+    - name: Apply Gemma3 HTTP port
+      become: true
+      command: snap restart gemma3
+      when: _gemma_install is changed
+      changed_when: true
+      failed_when: false
+
+    - name: Install Open WebUI
+      become: true
+      command: snap install --beta open-webui
+      register: _openwebui_install
+      changed_when: "'already installed' not in ((_openwebui_install.stdout or '') + (_openwebui_install.stderr or ''))"
+      failed_when: _openwebui_install.rc != 0
+
+    - name: Ensure Continue config directory exists (coding agent)
+      file:
+        path: "{{ continue_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Write Continue config for Gemma3
+      copy:
+        dest: "{{ continue_dir }}/config.json"
+        mode: "0644"
+        content: |
+          {
+            "models": [
+              {
+                "title": "Gemma3 (inference snap)",
+                "provider": "openai",
+                "model": "gemma-3",
+                "apiKey": "not-needed",
+                "apiBase": "{{ gemma_api_base }}"
+              }
+            ]
+          }
+
+    - name: Show post-install steps
+      debug:
+        msg:
+          - "Gemma3 and Open WebUI are installed."
+          - "API base: {{ gemma_api_base }}"
+          - "Chat UI: Open 'Open WebUI' from the app menu, then Admin Settings > Connections > enable Direct Connections, add URL: http://127.0.0.1:{{ gemma_http_port }}/v1"
+          - "Coding: Install 'Continue' in Cursor/VS Code; it will use {{ continue_dir }}/config.json to talk to Gemma3."
+      run_once: true

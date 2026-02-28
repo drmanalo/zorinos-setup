@@ -1,0 +1,144 @@
+---
+- name: Ollama with ROCm
+  hosts: localhost
+  gather_facts: true
+
+  vars:
+    rocm_version: "6.4.1"
+    ubuntu_codename: "{{ ansible_facts.distribution_release | default('noble') }}"
+    ollama_rocm_hsa_override: "11.0.0"  # Phoenix/RDNA3; set to "" to skip
+    rocm_keyring_path: /etc/apt/keyrings/rocm.gpg
+    rocm_list_path: /etc/apt/sources.list.d/rocm.list
+    rocm_pin_path: /etc/apt/preferences.d/rocm-pin-600
+    ollama_service_dropin_dir: /etc/systemd/system/ollama.service.d
+
+  tasks:
+    - name: Ensure apt keyrings directory exists
+      become: true
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download and add ROCm GPG key
+      become: true
+      shell: |
+        wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor -o {{ rocm_keyring_path }}
+      args:
+        creates: "{{ rocm_keyring_path }}"
+
+    - name: Add ROCm apt repository
+      become: true
+      copy:
+        dest: "{{ rocm_list_path }}"
+        content: "deb [arch=amd64 signed-by={{ rocm_keyring_path }}] https://repo.radeon.com/rocm/apt/{{ rocm_version }} {{ ubuntu_codename }} main\n"
+        mode: "0644"
+      register: _rocm_repo_added
+
+    - name: Set ROCm package pin priority
+      become: true
+      copy:
+        dest: "{{ rocm_pin_path }}"
+        content: |
+          Package: *
+          Pin: release o=repo.radeon.com
+          Pin-Priority: 600
+        mode: "0644"
+
+    - name: Update apt cache
+      become: true
+      apt:
+        update_cache: true
+      when: _rocm_repo_added is changed
+
+    - name: Install ROCm and zstd
+      become: true
+      apt:
+        name:
+          - rocm
+          - zstd
+        state: present
+        update_cache: true
+
+    - name: Add current user to render and video groups
+      become: true
+      user:
+        name: "{{ ansible_user_id }}"
+        groups: render,video
+        append: true
+
+    - name: Download Ollama install script
+      get_url:
+        url: https://ollama.com/install.sh
+        dest: /tmp/ollama-install.sh
+        mode: "0755"
+
+    - name: Check if Ollama already installed
+      stat:
+        path: "{{ item }}"
+      loop:
+        - /usr/local/bin/ollama
+        - /usr/bin/ollama
+      register: _ollama_path_check
+
+    - name: Run Ollama install script
+      become: true
+      command: /tmp/ollama-install.sh
+      when: not (_ollama_path_check.results | selectattr('stat.exists') | list | length > 0)
+      environment:
+        PATH: "{{ ansible_env.PATH | default('/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin') }}"
+
+    - name: Ensure ollama service drop-in directory exists
+      become: true
+      file:
+        path: "{{ ollama_service_dropin_dir }}"
+        state: directory
+        mode: "0755"
+      when: ollama_rocm_hsa_override | length > 0
+
+    - name: Create systemd drop-in for HSA_OVERRIDE_GFX_VERSION
+      become: true
+      copy:
+        dest: "{{ ollama_service_dropin_dir }}/override.conf"
+        content: |
+          [Service]
+          Environment="HSA_OVERRIDE_GFX_VERSION={{ ollama_rocm_hsa_override }}"
+        mode: "0644"
+      when: ollama_rocm_hsa_override | length > 0
+
+    - name: Reload systemd and restart ollama
+      become: true
+      systemd:
+        name: ollama
+        state: restarted
+        daemon_reload: true
+      when: ollama_rocm_hsa_override | length > 0
+
+    - name: Enable and start ollama service
+      become: true
+      systemd:
+        name: ollama
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Post-install reminder
+      debug:
+        msg: "Ollama with ROCm is installed. If the GPU is not detected, reboot once, then run: ollama run llama3.2"
+      run_once: true
+
+- name: Install Claude
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Download Claude install script
+      get_url:
+        url: https://claude.ai/install.sh
+        dest: /tmp/claude-install.sh
+        mode: "0755"
+
+    - name: Run Claude install script
+      command: bash /tmp/claude-install.sh
+      args:
+        creates: "{{ lookup('env', 'HOME') }}/.local/bin/claude"
+      become: false

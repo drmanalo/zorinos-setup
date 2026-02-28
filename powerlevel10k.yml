@@ -3,6 +3,7 @@
 
   vars:
     home_dir: "{{ lookup('env','HOME') }}"
+    nvm_dir: "{{ home_dir }}/.nvm"
     p10k_dir: "{{ home_dir }}/powerlevel10k"
     zsh_autosuggestions_path: "{{ home_dir }}/.zsh/zsh-autosuggestions"
     zshrc_path: "{{ home_dir }}/.zshrc"
@@ -37,14 +38,14 @@
     - name: Configure .zshrc block
       blockinfile:
         path: "{{ zshrc_path }}"
-        marker: "# {mark} ANSIBLE_MANAGED_P10K"
+        marker: "# {mark} ANSIBLE_MANAGED"
         create: yes
         insertafter: EOF
         block: |
           if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
             source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
           fi
-
+          [[ -f "{{ nvm_dir }}/nvm.zsh" ]] && source "{{ nvm_dir }}/nvm.sh"
           [[ -f "{{ p10k_dir }}/powerlevel10k.zsh-theme" ]] && source "{{ p10k_dir }}/powerlevel10k.zsh-theme"
           [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
           [[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases
@@ -79,6 +80,9 @@
           alias home='cd ~/'
           alias py='python3'
           alias rs='exec $SHELL -l'
+          # work
+          alias awsconnect='/opt/awsconnect-linux-x64/awsconnect'
+          alias tf='/usr/bin/terraform'
 
     - name: Write .zsh_exports
       copy:
@@ -90,6 +94,8 @@
           export PATH=$PATH:/usr/local/go/bin
           export GOPATH=~/go
           export PATH="$PATH:$(go env GOPATH)/bin"
-          export N_PREFIX="$HOME/n"; [[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+          [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
           export PYTHONPATH="$PWD/lib:$PYTHONPATH"
           export PATH="$PATH:$HOME/.local/bin"

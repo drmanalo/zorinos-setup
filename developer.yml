@@ -102,17 +102,32 @@
       register: gpg_details
       changed_when: false
 
-- name: Install ollama
+- name: Install nvm
   hosts: localhost
   tasks:
-    - name: Download install script
+    - name: Download nvm script
       get_url:
-        url: https://ollama.com/install.sh
-        dest: /tmp/ollama-install.sh
+        url: https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh
+        dest: /tmp/nvm-install.sh
         mode: 0755
 
-    - name: Run install script
-      become: true
-      command: /tmp/ollama-install.sh
+    - name: Run nvm install
+      ansible.builtin.command:
+        argv:
+          - bash
+          - /tmp/nvm-install.sh
+
+- name: Install Zed editor
+  hosts: localhost
+  tasks:
+    - name: Download Zed install script
+      get_url:
+        url: https://zed.dev/install.sh
+        dest: /tmp/zed-install.sh
+        mode: "0755"
+
+    - name: Run Zed install script
+      command: bash /tmp/zed-install.sh
       args:
-        creates: /usr/local/bin/ollama
+        creates: "{{ lookup('env', 'HOME') }}/.local/bin/zed"
+      become: false

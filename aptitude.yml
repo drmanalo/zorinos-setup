@@ -3,6 +3,8 @@
   become: true
   vars:
     packages:
+      - cifs-utils
+      - exfatprogs
       - eza
       - figlet
       - firefox
@@ -19,6 +21,7 @@
       - pipx
       - podman
       - pwgen
+      - terraform
       - timeshift
       - vlc
       - xclip

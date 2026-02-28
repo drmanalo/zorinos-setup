@@ -1,0 +1,26 @@
+---
+- name: Install snap apps
+  hosts: localhost
+  become: true
+  vars:
+    snap_apps:
+      - name: insomnia
+      - name: tradingview
+      - name: whatsapp-desktop-client
+
+  tasks:
+    - name: Get list of installed snap apps
+      command: snap list --name
+      register: _snap_apps
+      changed_when: false
+      failed_when: false
+
+    - name: Install missing snap apps
+      command: >
+        snap install {{ item.name }}
+        {{ '--classic' if item.classic | default(false) else '' }}
+      loop: "{{ snap_apps }}"
+      when: item.name not in (_snap_apps.stdout_lines | default([]))
+      register: _snap_install
+      changed_when: "'installed' in (_snap_install.stdout | default(''))"
+      failed_when: false

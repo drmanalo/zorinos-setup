@@ -107,3 +107,33 @@
       args:
         creates: "{{ lookup('env', 'HOME') }}/.local/bin/zed"
       become: false
+
+- name: Install Claude Desktop
+  hosts: localhost
+  become: true
+  tasks:
+    - name: Install curl and gnupg
+      apt:
+        name:
+          - curl
+          - gnupg
+        state: present
+
+    - name: Download Anthropic's signing key
+      get_url:
+        url: https://downloads.claude.ai/claude-desktop/key.asc
+        dest: /usr/share/keyrings/claude-desktop-archive-keyring.asc
+        mode: 0644
+
+    - name: Add Claude Desktop apt repository
+      copy:
+        dest: /etc/apt/sources.list.d/claude-desktop.list
+        content: |
+          deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/claude-desktop-archive-keyring.asc] https://downloads.claude.ai/claude-desktop/apt/stable stable main
+        mode: 0644
+
+    - name: Install claude-desktop package
+      apt:
+        name: claude-desktop
+        state: present
+        update_cache: yes

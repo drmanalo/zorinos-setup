@@ -15,13 +15,13 @@
       - gnome-tweaks
       - htop
       - jq
+      - nvidia-driver-580-open
       - neofetch
       - neovim
       - openssh-server
-      - pipx
-      - podman
+      - pass
       - pwgen
-      - terraform
+      - speedtest-cli
       - timeshift
       - vlc
       - xclip

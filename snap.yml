@@ -6,7 +6,9 @@
     snap_apps:
       - name: insomnia
       - name: tradingview
-      - name: whatsapp-desktop-client
+      - name: teams-for-linux
+      - name: telegram-desktop
+      - name: zapzap
 
   tasks:
     - name: Get list of installed snap apps

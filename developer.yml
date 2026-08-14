@@ -137,3 +137,30 @@
         name: claude-desktop
         state: present
         update_cache: yes
+
+- name: Install IntelliJ IDEA Community
+  hosts: localhost
+  tasks:
+    - name: Download IntelliJ IDEA Community
+      get_url:
+        url: https://download.jetbrains.com/product?code=IIC&latest&distribution=linux
+        dest: /tmp/idea-community.tar.gz
+        mode: 0644
+        force: false
+      become: false
+
+    - name: Extract IntelliJ IDEA Community
+      become: true
+      shell: |
+        mkdir -p /opt/idea-community
+        tar -xzf /tmp/idea-community.tar.gz -C /opt/idea-community --strip-components=1
+      args:
+        creates: /opt/idea-community/bin/idea.sh
+        executable: /bin/bash
+
+    - name: Symlink IntelliJ IDEA Community binary
+      become: true
+      file:
+        src: /opt/idea-community/bin/idea.sh
+        dest: /usr/local/bin/idea-community
+        state: link

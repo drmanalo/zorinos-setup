@@ -5,7 +5,6 @@
   vars:
     snap_apps:
       - name: insomnia
-      - name: tradingview
       - name: teams-for-linux
       - name: telegram-desktop
       - name: zapzap

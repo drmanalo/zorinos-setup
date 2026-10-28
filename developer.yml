@@ -105,6 +105,21 @@
       args:
         creates: /usr/local/bin/helm
 
+- name: Kustomize
+  hosts: localhost
+  tasks:
+    - name: Download Kustomize install script
+      get_url:
+        url: https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh
+        dest: /tmp/install_kustomize.sh
+        mode: 0755
+
+    - name: Run Kustomize install script
+      become: true
+      command: bash /tmp/install_kustomize.sh /usr/local/bin
+      args:
+        creates: /usr/local/bin/kustomize
+
 - name: Golang
   hosts: localhost
   tasks:
